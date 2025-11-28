@@ -1,8 +1,28 @@
+# parking.py
+import json, os
+
 # ---------------------------------------------
 # SmartPark: Region-Based Parking Availability
 # ---------------------------------------------
+# Regions are sets of parking lots, each lot has a capacity.
+# Occupancy is tracked as a mapping lot → used slots.
+# ---------------------------------------------
+DATA_FILE = "parking_data.json"
 
-# Parking lots grouped by region
+def save_state():
+    with open(DATA_FILE, "w") as f:
+        json.dump(occupied, f)
+
+def load_state():
+    global occupied
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            occupied = json.load(f)
+
+# Call load_state() at startup
+load_state()
+
+
 parking_lots = {
     "West": {
         "Grandstand Parking": 80,
@@ -18,89 +38,68 @@ parking_lots = {
     }
 }
 
-# Track occupied spaces (lot_name → number occupied)
+# Occupied slots per lot
 occupied = {lot: 0 for region in parking_lots.values() for lot in region}
 
-def display_region_status():
-    print("\n📊 PARKING STATUS BY REGION\n")
-    for region, lots in parking_lots.items():
-        region_full = all(occupied[lot] >= cap for lot, cap in lots.items())
-        if region_full:
-            print(f"{region.upper()} CAMPUS → FULL")
-        else:
-            print(f"{region.upper()} CAMPUS → AVAILABLE")
+# --- Set Theory Inspired Helpers ---
 
-def display_lots(region):
-    print(f"\n🚗 {region.upper()} CAMPUS PARKING LOTS:")
-    for lot, cap in parking_lots[region].items():
-        used = occupied[lot]
-        status = "FULL" if used >= cap else f"{cap - used} slots free"
-        print(f"  • {lot}: {used}/{cap} ({status})")
+def region_full(region: str) -> bool:
+    """Check if every lot in a region is full (set is saturated)."""
+    return all(occupied[lot] >= cap for lot, cap in parking_lots[region].items())
 
-def park_car():
-    region = input("\nChoose Region (West/East): ").title()
+def region_available(region: str) -> bool:
+    """Check if at least one lot in a region has free slots (set has space)."""
+    return any(occupied[lot] < cap for lot, cap in parking_lots[region].items())
+
+def get_region_status():
+    """Return availability status per region."""
+    return {region: "FULL" if region_full(region) else "AVAILABLE"
+            for region in parking_lots}
+
+def get_region_totals():
+    """Return used/total slots per region (like cardinality of sets)."""
+    return {
+        region: {
+            "used": sum(occupied[lot] for lot in lots),
+            "total": sum(lots.values())
+        }
+        for region, lots in parking_lots.items()
+    }
+
+def get_lots(region: str):
+    """Return occupancy details for all lots in a region."""
     if region not in parking_lots:
-        print("❌ Invalid region.")
-        return
+        return {"error": "Invalid region"}
+    return {
+        lot: {
+            "used": occupied[lot],
+            "capacity": cap,
+            "status": "FULL" if occupied[lot] >= cap else f"{cap - occupied[lot]} slots free"
+        }
+        for lot, cap in parking_lots[region].items()
+    }
 
-    display_lots(region)
-    lot = input("Choose parking lot: ").strip()
-
-    if lot not in parking_lots[region]:
-        print("❌ Invalid parking lot.")
-        return
-
+def park_vehicle(region: str, lot: str):
+    """Add a car to a lot (like adding an element to a set until capacity)."""
+    if region not in parking_lots or lot not in parking_lots[region]:
+        return {"error": "Invalid region or lot"}
     if occupied[lot] >= parking_lots[region][lot]:
-        print(f"⚠️ {lot} is FULL.")
-        return
-
+        return {"status": "FULL", "lot": lot}
     occupied[lot] += 1
-    print(f"✅ You parked in {lot}. Now {occupied[lot]}/{parking_lots[region][lot]} occupied.")
+    return {"status": "PARKED", "lot": lot,
+            "occupied": occupied[lot],
+            "capacity": parking_lots[region][lot]}
 
-def leave_parking():
-    lot = input("\nEnter the lot you are leaving: ").strip()
-
+def leave_vehicle(lot: str):
+    """Remove a car from a lot (like removing an element from a set)."""
     if lot not in occupied:
-        print("❌ Invalid lot.")
-        return
-
+        return {"error": "Invalid lot"}
     if occupied[lot] == 0:
-        print("ℹ️ That lot already has no cars recorded.")
-        return
-
+        return {"status": "EMPTY", "lot": lot}
     occupied[lot] -= 1
-    print(f"✅ You left {lot}. Now {occupied[lot]}/{parking_lots['West'].get(lot, parking_lots['East'].get(lot))} occupied.")
-
-def main():
-    print("🚦 SmartPark – Region-Based Parking")
-    print("-----------------------------------")
-
-    while True:
-        print("\nOptions:")
-        print("1. View Region Status")
-        print("2. View Parking Lots in a Region")
-        print("3. Park a Car")
-        print("4. Leave a Parking Lot")
-        print("5. Exit")
-
-        choice = input("Select option: ").strip()
-
-        if choice == "1":
-            display_region_status()
-        elif choice == "2":
-            region = input("Enter region (West/East): ").title()
-            if region in parking_lots:
-                display_lots(region)
-            else:
-                print("Invalid region.")
-        elif choice == "3":
-            park_car()
-        elif choice == "4":
-            leave_parking()
-        elif choice == "5":
-            print("👋 Exiting SmartPark.")
-            break
-        else:
-            print("❌ Invalid choice.")
-
-main()
+    for region, lots in parking_lots.items():
+        if lot in lots:
+            return {"status": "LEFT", "lot": lot,
+                    "occupied": occupied[lot],
+                    "capacity": lots[lot]}
+    return {"error": "Lot not found in any region"}
