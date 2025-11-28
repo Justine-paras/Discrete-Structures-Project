@@ -4,9 +4,8 @@
   <meta charset="UTF-8" />
   <title>DLSUD Parking Allocation System</title>
   <link rel="stylesheet" href="parking.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Alumni+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Alumni+Sans&display=swap" rel="stylesheet">
 </head>
-
 <body>
 
   <!-- TOP BAR -->
@@ -29,7 +28,7 @@
 
       <label class="field-label">Select Parking Region</label>
       <div class="select-box">
-        <select>
+        <select id="regionSelect">
           <option>West Campus</option>
           <option>East Campus</option>
         </select>
@@ -37,15 +36,12 @@
 
       <label class="field-label">Select Parking Lot</label>
       <div class="select-box">
-        <select>
-          <option>Magdiwang (Gate 3) Parking</option>
-          <option>Gate 1 Parking</option>
-        </select>
+        <select id="lotSelect"></select>
       </div>
 
       <div class="buttons">
-        <button class="park-btn"><span>🅿</span> Park Vehicle</button>
-        <button class="leave-btn"><span>🚗</span> Leave Parking</button>
+        <button class="park-btn" id="parkBtn"><span>🅿</span> Park Vehicle</button>
+        <button class="leave-btn" id="leaveBtn"><span>🚗</span> Leave Parking</button>
       </div>
     </section>
 
@@ -55,35 +51,140 @@
       <h2 class="status-title">Real-Time Parking Status</h2>
 
       <div class="status-area">
-
         <!-- WEST STATUS -->
         <div class="status-card west">
           <h3>West Campus</h3>
-          <div class="gauge-container">
-  <div class="gauge-fill" style="--percentage: 40;"></div>
-  <div class="gauge-cover">155</div>
-</div>
-          <p class="capacity">155 / 350</p>
+          <div class="gauge">
+            <div class="gauge__body">
+              <div class="gauge__fill"></div>
+              <div class="gauge__cover"></div>
+            </div>
+          </div>
+          <p class="capacity">0 / 0</p>
         </div>
 
         <!-- EAST STATUS -->
         <div class="status-card east">
           <h3>East Campus</h3>
-          <div class="gauge blue-gauge">
-            <div class="gauge-value-full">FULL</div>
-            <div class="gauge-sub">CLOSED</div>
+          <div class="gauge">
+            <div class="gauge__body">
+              <div class="gauge__fill"></div>
+              <div class="gauge__cover"></div>
+            </div>
           </div>
-          <p class="capacity">350 / 350</p>
+          <p class="capacity">0 / 0</p>
         </div>
-
       </div>
 
-      <p class="result"><strong>Successfully Parked:</strong> Magdiwang (Gate 3)</p>
+      <p class="result"><strong>Status:</strong> No action yet</p>
 
     </section>
   </main>
 
   <footer class="footer">v1.0 | ©2025 DLSUDToolkit</footer>
+
+<script>
+  // ===========================
+  // GAUGE CONTROL
+  // ===========================
+  function setGaugeValue(gauge, value) {
+    if (value < 0 || value > 1) return;
+    gauge.querySelector(".gauge__fill").style.transform = `rotate(${value / 2}turn)`;
+    gauge.querySelector(".gauge__cover").textContent = `${Math.round(value * 100)}%`;
+  }
+
+  // ===========================
+  // NORMALIZE REGION NAMES
+  // ===========================
+  function normalizeRegion(regionText) {
+    if (regionText.includes("West")) return "West";
+    if (regionText.includes("East")) return "East";
+    return regionText;
+  }
+
+  // ===========================
+  // REFRESH UI FROM BACKEND
+  // ===========================
+  async function refreshUI() {
+    const status = await window.pywebview.api.get_parking_status();
+
+    // WEST
+    document.querySelector(".west .capacity").textContent =
+      `${status["West"].used} / ${status["West"].total}`;
+    setGaugeValue(document.querySelector(".west .gauge"), status["West"].used / status["West"].total);
+
+    // EAST
+    document.querySelector(".east .capacity").textContent =
+      `${status["East"].used} / ${status["East"].total}`;
+    setGaugeValue(document.querySelector(".east .gauge"), status["East"].used / status["East"].total);
+  }
+
+  // ===========================
+  // LOAD LOTS DYNAMICALLY
+  // ===========================
+  async function loadLots(regionText) {
+    const region = normalizeRegion(regionText);
+    const lots = await window.pywebview.api.get_parking_lots(region);
+
+    const lotSelect = document.getElementById("lotSelect");
+    lotSelect.innerHTML = "";
+    for (const lot in lots) {
+      const opt = document.createElement("option");
+      opt.value = lot;
+      opt.textContent = lot;
+      lotSelect.appendChild(opt);
+    }
+  }
+
+  // ===========================
+  // BUTTON EVENTS
+  // ===========================
+  document.getElementById("parkBtn").addEventListener("click", async function () {
+    const regionText = document.getElementById("regionSelect").value;
+    const region = normalizeRegion(regionText);
+    const lot = document.getElementById("lotSelect").value;
+
+    const result = await window.pywebview.api.park(region, lot);
+
+    if (result.status === "FULL") {
+      document.querySelector(".result").innerHTML = `<strong>Status:</strong> Parking Full`;
+    } else {
+      document.querySelector(".result").innerHTML = `<strong>Successfully Parked:</strong> ${lot}`;
+    }
+
+    refreshUI();
+  });
+
+  document.getElementById("leaveBtn").addEventListener("click", async function () {
+    const lot = document.getElementById("lotSelect").value;
+    const result = await window.pywebview.api.leave(lot);
+
+    if (result.status === "EMPTY") {
+      document.querySelector(".result").innerHTML = `<strong>Status:</strong> Lot already empty`;
+    } else {
+      document.querySelector(".result").innerHTML = `<strong>Vehicle Left:</strong> ${lot}`;
+    }
+
+    refreshUI();
+  });
+
+  // HOME BUTTON
+  document.getElementById("homeBtn").addEventListener("click", () => {
+    window.location.href = "home.html";
+  });
+
+  // ===========================
+  // INITIAL LOAD
+  // ===========================
+  window.onload = async () => {
+    await refreshUI();
+    await loadLots(document.getElementById("regionSelect").value);
+  };
+
+  document.getElementById("regionSelect").addEventListener("change", (e) => {
+    loadLots(e.target.value);
+  });
+</script>
 
 </body>
 </html>
