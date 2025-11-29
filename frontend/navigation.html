@@ -4,21 +4,29 @@
   <meta charset="UTF-8" />
   <title>DLSUD Campus Navigation</title>
   <link rel="stylesheet" href="navigation.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Alumni+Sans&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Alumni+Sans:wght@400;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <!-- HEADER -->
   <header class="topbar">
-    <div class="left-group">
+  <div class="left-group">
     <img src="images/dlsud-logo.png" class="logo" alt="DLSUD Logo" />
     <h1 class="title">
-  <span class="highlight">DLSUD</span> Campus Navigation System
-</h1>
+      <span class="highlight">DLSUD</span> Campus Navigation System
+    </h1>
   </div>
+
+  <!-- Right group for buttons -->
+  <div class="right-group">
+    <button id="backBtn" class="nav-button">
+      <img src="images/campus-graph.png" alt="Back" class="nav-icon" />
+    </button>
+
     <button id="homeBtn" class="home-button">
-  <img src="images/home-icon.png" alt="Home" class="home-icon" />
-</button>
-  </header>
+      <img src="images/home-icon.png" alt="Home" class="home-icon" />
+    </button>
+  </div>
+</header>
 
   <!-- MAIN CONTENT -->
   <main class="container">
@@ -104,6 +112,11 @@
   <footer>
     v1.0 | 2025 DLSUDToolkit
   </footer>
+<div id="imageOverlay" class="overlay">
+  <span class="close">&times;</span>
+  <img class="overlay-content" src="images/campus-nodes.png" alt="Campus Map" />
+</div>
+
 
   <!-- SCRIPT -->
   <script>
@@ -154,6 +167,28 @@
     window.location.href = "home.html"; 
     // or "/" if homepage is root
   });
+});
+
+// Get elements
+const navBtn = document.getElementById("backBtn");
+const overlay = document.getElementById("imageOverlay");
+const closeBtn = document.querySelector(".close");
+
+// Show overlay when nav button is clicked
+navBtn.addEventListener("click", () => {
+  overlay.style.display = "flex"; // flex centers content
+});
+
+// Hide overlay when close button is clicked
+closeBtn.addEventListener("click", () => {
+  overlay.style.display = "none";
+});
+
+// Hide overlay when clicking outside the image
+overlay.addEventListener("click", (e) => {
+  if (e.target === overlay) {
+    overlay.style.display = "none";
+  }
 });
   </script>
 </body>

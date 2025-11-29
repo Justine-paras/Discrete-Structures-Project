@@ -3,6 +3,12 @@ import time
 import threading
 from backend.navigation import get_shortest_path
 from backend.scholarship import ScholarshipAPI
+from backend.parking import (get_region_status,
+    get_region_totals,
+    get_lots,
+    park_vehicle,
+    leave_vehicle)
+
 
 class API:
     def __init__(self):
@@ -30,5 +36,21 @@ class API:
     def open_parking(self):
         threading.Timer(0.1, lambda: webview.windows[0].load_url('frontend/parking.html')).start()
         return "parking loaded"
+    
+    def get_parking_status(self):
+        return get_region_totals()
+
+    def get_parking_availability(self):
+        return get_region_status()
+
+    def get_parking_lots(self, region):
+        return get_lots(region)
+
+    def park(self, region, lot):
+        return park_vehicle(region, lot)
+
+    def leave(self, lot):
+        return leave_vehicle(lot)
+
 
 
